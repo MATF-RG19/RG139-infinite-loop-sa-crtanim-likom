@@ -9,6 +9,8 @@
 
 #define STEP 100
 #define FLYINGPIG_ID 1
+#define TIMER_ID 0
+#define TIMER_INTERVAL 20
 
 //struktura za cuvanje modela
 typedef struct Vertex
@@ -34,6 +36,7 @@ static void on_mouse(int button, int state, int x, int y);
 static void on_motion(int x, int y);
 static void on_reshape(int width, int height);
 static void on_display(void);
+static void on_timer(int value);
 
 static void draw_axis(float len);
 static void draw_pig(void);
@@ -42,6 +45,8 @@ Vertex* LoadObj(FILE * file, int id);
 
 static Vertex *model;
 static int model_size = 0;
+static int animation_ongoing = 0;
+static int xPig = 0, yPig = 0, zPig = 0;
 
 int main(int argc, char **argv)
 {
@@ -85,18 +90,18 @@ int main(int argc, char **argv)
 
 void draw_axis(float len) {
     glDisable(GL_LIGHTING);
-
+    
     glBegin(GL_LINES);
         glColor3f(1,0,0);
-        glVertex3f(0,0,0);
+        glVertex3f(-len,0,0);
         glVertex3f(len,0,0);
 
         glColor3f(0,1,0);
-        glVertex3f(0,0,0);
+        glVertex3f(0,-len,0);
         glVertex3f(0,len,0);
 
         glColor3f(0,0,1);
-        glVertex3f(0,0,0);
+        glVertex3f(0,0,-len);
         glVertex3f(0,0,len);
     glEnd();
 
@@ -104,6 +109,7 @@ void draw_axis(float len) {
 }
 static void draw_pig(void)
 {
+    glDisable(GL_LIGHTING);
     GLfloat ambient_coeffs[] = { 0.4, 0, 0.7, 1 };
     GLfloat diffuse_coeffs[] = { 0.4, 0, 0.7, 1 };
     GLfloat specular_coeffs[] = { 0.4, 0, 0.7, 1};
@@ -113,6 +119,7 @@ static void draw_pig(void)
     glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_coeffs);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_coeffs);
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+    
     glTranslatef(1.3, 0,0);
     glRotatef(180, 0, 1, 0);
     glRotatef(90, -1, 0, 0);
@@ -125,20 +132,61 @@ static void draw_pig(void)
     posle toga zavrsavamo sa glEnd
     Dalje svaki sledeci model ucitavamo po istom principu
     */
+    
     glBegin(GL_TRIANGLES);
+        glColor3f(1,0,1);
         for(int i=0; i<model_size; i++){
                 glNormal3f(model[i].normal[0], model[i].normal[1], model[i].normal[2]);
                 glVertex3f(model[i].position[0], model[i].position[1], model[i].position[2]);
         } 
     glEnd();
+    glEnable(GL_LIGHTING);
 }
 
 static void on_keyboard(unsigned char key, int x, int y)
 {
     switch (key) {
+    
+    case 'g':
+    case 'G':
+        if (!animation_ongoing) {
+            glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
+            animation_ongoing = 1;
+        }
+        break;
+
+    case 's':
+    case 'S':
+        animation_ongoing = 0;
+        break;
+    case 'a':
+    case 'A':
+        if (xPig > -10)
+            xPig -=1;
+        glutPostRedisplay();
+        break;
+    case 'd':
+    case 'D':
+        if(xPig < 10)
+            xPig +=1;
+        glutPostRedisplay();
+        break;
     case 27:
         exit(0);
         break;
+    }
+}
+
+static void on_timer(int value)
+{
+    
+    if (value != TIMER_ID)
+        return;
+
+    zPig -= 1;
+    glutPostRedisplay();
+    if (animation_ongoing) {
+        glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
     }
 }
 
@@ -162,14 +210,13 @@ static void on_display(void)
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(0, 5, 4, 0, 0, 0, 0, 1, 0);
+    gluLookAt(xPig, yPig + 3, zPig + 4, xPig, yPig, zPig, 0, 1, 0);
     glMultMatrixf(matrix);
     
-    draw_axis(1000);
-    // glTranslatef(1,0,0);
+    draw_axis(100);
+    
     glPushMatrix();
-        draw_axis(10);
-        
+        glTranslatef(xPig, yPig, zPig);
         draw_pig();
     glPopMatrix();
 
@@ -380,7 +427,6 @@ Vertex* LoadObj(FILE * file, int id){
 
 static void on_mouse(int button, int state, int x, int y)
 {
-    printf("Mouse x: %d y: %d\n", x, y);
     mouse_x = x;
     mouse_y = y;
 }
@@ -389,7 +435,6 @@ static void on_motion(int x, int y)
 {
     int delta_x, delta_y;
 
-    printf("Mouse x: %d y: %d\n", x, y);
     delta_x = x - mouse_x;
     delta_y = y - mouse_y;
 
