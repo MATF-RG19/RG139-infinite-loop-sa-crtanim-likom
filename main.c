@@ -446,14 +446,7 @@ static void draw_pig(void)
     glRotatef(180, 0, 1, 0);
     glRotatef(90, -1, 0, 0);
     // glScalef(.2, .2, .2);
-    /*
-    Model ucitavamo tako sto inicijalizujemo glBegin na GL_TRIANGLES
-    prolazimo petljom kroz niz tipa Vertex i citamo redom potrebne podatke
-    u glnormal3f stavaljmo odgovarajuce koordinate (0=x, 1=y, 2=z)
-    isto i za glVertex3f
-    posle toga zavrsavamo sa glEnd
-    Dalje svaki sledeci model ucitavamo po istom principu
-    */
+    
     glBindTexture(GL_TEXTURE_2D, 0);
     glBegin(GL_TRIANGLES);
         glColor3f(1,0,1);
