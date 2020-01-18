@@ -9,9 +9,15 @@
 #include <time.h>
 
 #define STEP 100
+
 #define FLYINGPIG_ID 1
+#define STONE_ID 2
+#define APPLE_ID 3
+
 #define TIMER_ID 0
 #define TIMER_INTERVAL 20
+
+
 
 //struktura za cuvanje modela
 typedef struct Vertex
@@ -31,13 +37,22 @@ typedef struct VertRef
 static int mouse_x, mouse_y;
 static int window_width, window_height;
 static float matrix[16];
-static int xListA[7];
-static int zListA[7];
-static int xListB[7];
-static int zListB[7];
+static float xListA[6];
+static float zListA[6];
+static float xListB[6];
+static float zListB[6];
+
+static float xListCornA[3];
+static float zListCornA[3];
+static float xListCornB[3];
+static float zListCornB[3];
+
 static float zPlaneA = -15;
 static float zPlaneB = -45;
 static int gameEnded = 0;
+static float speed = 0.2;
+
+static int SCORE = 0;
 
 static void on_keyboard(unsigned char key, int x, int y);
 static void on_mouse(int button, int state, int x, int y);
@@ -48,14 +63,21 @@ static void on_timer(int value);
 
 static void draw_axis(float len);
 static void draw_pig(void);
+static void draw_stone(void);
+static void draw_apple(void);
 static void draw_planeA(void);
 static void draw_planeB(void);
 static void draw_obstaclesA(void);
 static void draw_obstaclesB(void);
+static void draw_appleA(void);
+static void draw_appleB(void);
 
 static void generate_random_poitionA(void);
 static void regenerate_random_poitionA(void);
 static void regenerate_random_poitionB(void);
+
+static bool is_in_planeA(float x, float z);
+static bool is_in_planeB(float x, float z);
 
 
 static float distance(float x, float y, float z);
@@ -65,8 +87,16 @@ Vertex* LoadObj(FILE * file, int id);
 
 static Vertex *model;
 static int model_size = 0;
+
+static Vertex *model_rock;
+static int model_rock_size = 0;
+
+static Vertex *model_apple;
+static int model_apple_size = 0;
+
 static int animation_ongoing = 0;
 static int xPig = 0, yPig = 0, zPig = 0;
+
 
 int main(int argc, char **argv)
 {
@@ -105,7 +135,26 @@ int main(int argc, char **argv)
         return false;
     }
     model = LoadObj(fileP, FLYINGPIG_ID);
-   
+    fclose(fileP);
+
+    FILE * fileR = fopen("./models/andrija.obj", "r");
+    if( fileR == NULL ){
+        printf("Impossible to open the file !\n");
+        return false;
+    }
+    model_rock = LoadObj(fileR, STONE_ID);
+    fclose(fileR);
+
+    FILE * fileC = fopen("./models/Manzana.obj", "r");
+    if( fileC == NULL ){
+        printf("Impossible to open the file !\n");
+        return false;
+    }
+    model_apple = LoadObj(fileC, APPLE_ID);
+    fclose(fileC);
+
+    
+
     glutMainLoop();
 
     return 0;
@@ -131,16 +180,44 @@ void draw_axis(float len) {
     glEnable(GL_LIGHTING);
 }
 
+static void draw_appleA(void) {
+    
+    int num = 3;
+    for(int i=0; i<num; i++){
+    
+        glPushMatrix();
+        glTranslatef(xListCornA[i], 0, zListCornA[i]);
+        draw_apple();
+        // glutSolidSphere(1,10,10);
+        glPopMatrix();
+    }
+    
+}
+
+static void draw_appleB(void) {
+    
+    int num = 3;
+    for(int i=0; i<num; i++){
+    
+        glPushMatrix();
+        glTranslatef(xListCornB[i], 0, zListCornB[i]);
+        draw_apple();
+        // glutSolidSphere(1,10,10);
+        glPopMatrix();
+    }
+    
+}
+
 static void draw_obstaclesA(void) {
     
-    int num = 7;
+    int num = 6;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
         glColor3f(1,0,0);
         glTranslatef(xListA[i], 0, zListA[i]);
-        glScalef(1,2,1);
-        glutSolidCube(1);
+        draw_stone();
+        // glutSolidCube(1);
         glPopMatrix();
     }
     
@@ -148,14 +225,14 @@ static void draw_obstaclesA(void) {
 
 static void draw_obstaclesB(void) {
     
-    int num = 7;
+    int num = 6;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
         glColor3f(1,0,0);
         glTranslatef(xListB[i], 0, zListB[i]);
-        glScalef(1,2,1);
-        glutSolidCube(1);
+        draw_stone();
+        // glutSolidCube(1);
         glPopMatrix();
     }
     
@@ -165,11 +242,13 @@ static void draw_planeB(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneB);
+    draw_appleB();
     draw_obstaclesB();
     glTranslatef(0,-0.5,0);
     glScalef(11, 1, 30);
     glColor3f(0.5,0.35,0.05);
     glutSolidCube(1);
+
     glEnable(GL_LIGHTING);
 }
 
@@ -177,11 +256,14 @@ static void draw_planeA(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneA);
+    draw_appleA();
     draw_obstaclesA();
     glTranslatef(0,-0.5,0);
     glScalef(11, 1, 30);
     glColor3f(0.5,0.35,0.05);
     glutSolidCube(1);
+
+
     glEnable(GL_LIGHTING);
 }
 
@@ -210,12 +292,65 @@ static void draw_pig(void)
     posle toga zavrsavamo sa glEnd
     Dalje svaki sledeci model ucitavamo po istom principu
     */
-    
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBegin(GL_TRIANGLES);
         glColor3f(1,0,1);
         for(int i=0; i<model_size; i++){
                 glNormal3f(model[i].normal[0], model[i].normal[1], model[i].normal[2]);
                 glVertex3f(model[i].position[0], model[i].position[1], model[i].position[2]);
+        } 
+    glEnd();
+    glEnable(GL_LIGHTING);
+}
+
+static void draw_stone(void)
+{
+    glDisable(GL_LIGHTING);
+    GLfloat ambient_coeffs[] = { 0.4, 0, 0.7, 1 };
+    GLfloat diffuse_coeffs[] = { 0.4, 0, 0.7, 1 };
+    GLfloat specular_coeffs[] = { 0.4, 0, 0.7, 1};
+    
+    GLfloat shininess = 30;
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_coeffs);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_coeffs);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_coeffs);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+    glTranslatef(0,0.5,0);
+    glScalef(.5,.5,.5);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBegin(GL_TRIANGLES);
+        glColor3f(.6,.6,.6);
+        for(int i=0; i<model_rock_size; i++){
+                glNormal3f(model_rock[i].normal[0], model_rock[i].normal[1], model_rock[i].normal[2]);
+                glVertex3f(model_rock[i].position[0], model_rock[i].position[1], model_rock[i].position[2]);
+        } 
+    glEnd();
+    glEnable(GL_LIGHTING);
+}
+
+static void draw_apple(void)
+{
+    glDisable(GL_LIGHTING);
+    GLfloat ambient_coeffs[] = { 0.4, 0, 0.7, 1 };
+    GLfloat diffuse_coeffs[] = { 0.4, 0, 0.7, 1 };
+    GLfloat specular_coeffs[] = { 0.4, 0, 0.7, 1};
+    
+    GLfloat shininess = 30;
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_coeffs);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_coeffs);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_coeffs);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+    glTranslatef(0,0.5,0);
+    // glRotatef(45, 0, 0, 1);
+    // glScalef(.1,.1,.1);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBegin(GL_TRIANGLES);
+        glColor3f(.7,.1,.1);
+        for(int i=0; i<model_apple_size; i++){
+                glNormal3f(model_apple[i].normal[0], model_apple[i].normal[1], model_apple[i].normal[2]);
+                glVertex3f(model_apple[i].position[0], model_apple[i].position[1], model_apple[i].position[2]);
         } 
     glEnd();
     glEnable(GL_LIGHTING);
@@ -256,6 +391,8 @@ static void on_keyboard(unsigned char key, int x, int y)
         animation_ongoing = 0;
         gameEnded = 0;
         xPig = 0;
+        speed = 0.2;
+        SCORE = 0;
         regenerate_random_poitionA();
         regenerate_random_poitionB();
         glutPostRedisplay();
@@ -272,8 +409,8 @@ static void on_timer(int value)
     if (value != TIMER_ID)
         return;
 
-    zPlaneA = zPlaneA + 0.5f;
-    zPlaneB = zPlaneB + 0.5f;
+    zPlaneA = zPlaneA + speed;
+    zPlaneB = zPlaneB + speed;
     collision();
     if (zPlaneA - 15 > 5)
     {
@@ -283,7 +420,7 @@ static void on_timer(int value)
 
     if (zPlaneB - 15 > 5)
 {       
-        
+        speed += 0.05;
         regenerate_random_poitionB();
         zPlaneB = -39;
     }
@@ -317,7 +454,21 @@ static void on_display(void)
     gluLookAt(xPig, yPig*1.0 + 2.1, zPig + 4, xPig, yPig, zPig, 0, 1, 0);
     glMultMatrixf(matrix);
     
-    draw_axis(100);
+    // draw_axis(100);
+    
+    glPushMatrix();
+    glRasterPos3f(-2 + xPig, 2, 0);
+    char score_display[50] = "SCORE : ";
+    char string_score[50];
+    sprintf(string_score, "%d", SCORE);
+    strcat(score_display, string_score);
+    int len = (int) strlen(score_display);
+
+    for(int i=0; i<len;i++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, score_display[i]);
+    }
+    glPopMatrix();
+
 
     glPushMatrix();
         draw_planeB();
@@ -519,7 +670,20 @@ Vertex* LoadObj(FILE * file, int id){
     }
     //pamcenje duzine niza u odnosu na odgovarajuci id
     if(id == FLYINGPIG_ID)
-        model_size = verts_count;    
+    {
+        model_size = verts_count; 
+    }
+
+    if (id == STONE_ID)
+    {
+        model_rock_size = verts_count;
+    }
+    
+    if (id == APPLE_ID)
+    {
+        model_apple_size = verts_count;
+    }
+    
 
     //oslobadjanje memorije
     for(int i=0; i<countPos; i++)
@@ -570,7 +734,7 @@ static void on_motion(int x, int y)
 }
 
 static void generate_random_poitionA(void) {
-    int num = 7;
+    int num = 6;
     for(int i=0; i<num; i++){
         int v1 = rand() % 10;
         // int v2 = rand() % 10;
@@ -589,10 +753,33 @@ static void generate_random_poitionA(void) {
         
 
     }
+
+    for (int i = 0; i < 3; i++)
+    {
+        int v2 = rand() % 10;
+        // int v2 = rand() % 10;
+        zListCornA[i] = rand() % 15;
+        xListCornA[i] = rand() % 6;
+        zListCornB[i] = rand() % 15;
+        xListCornB[i] = rand() % 6;
+        if(v2 > 4){
+            zListCornA[i] *= -1;
+            zListCornB[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListCornA[i] *= -1;
+            xListCornB[i] *= -1;
+        }
+
+        if(is_in_planeA(xListCornA[i], zListCornA[i]) || is_in_planeB(xListCornB[i], zListCornB[i]))
+            i -= 1;
+
+    }
+    
 }
 
 static void regenerate_random_poitionA(void) {
-    int num = 7;
+    int num = 6;
     for(int i=0; i<num; i++){
         
         int v1 = rand() % 10;
@@ -607,10 +794,28 @@ static void regenerate_random_poitionA(void) {
         
 
     }
+
+    for (int i = 0; i < 3; i++)
+    {
+        int v2 = rand() % 10;
+        // int v2 = rand() % 10;
+        zListCornA[i] = rand() % 15;
+        xListCornA[i] = rand() % 6;
+        if(v2 > 4){
+            zListCornA[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListCornA[i] *= -1;
+        }
+
+        if(is_in_planeA(xListCornA[i], zListCornA[i]))
+            i -= 1;
+
+    }
 }
 
 static void regenerate_random_poitionB(void) {
-    int num = 7;
+    int num = 6;
     
     for(int i=0; i<num; i++){
         int v1 = rand() % 10;
@@ -625,6 +830,25 @@ static void regenerate_random_poitionB(void) {
         
 
     }
+
+    for (int i = 0; i < 3; i++)
+    {
+        int v2 = rand() % 10;
+        // int v2 = rand() % 10;
+        zListCornB[i] = rand() % 15;
+        xListCornB[i] = rand() % 6;
+        if(v2 > 4){
+            zListCornB[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListCornB[i] *= -1;
+        }
+
+        if(is_in_planeB(xListCornB[i], zListCornB[i]))
+            i-=1;
+
+    }
+
 }
 
 static float distance(float x, float y, float z)
@@ -637,11 +861,52 @@ static float distance(float x, float y, float z)
 }
 
 static void collision(void) {
-    for(int i=0; i<7; i++){
+    for(int i=0; i<6; i++){
 
-        if(distance(xListA[i], 0, zListA[i] + zPlaneA) <= 0 || distance(xListB[i], 0, zListB[i] + zPlaneB) <= 0){
+        if(distance(xListA[i], 0, zListA[i] + zPlaneA) <= 0.5 || distance(xListB[i], 0, zListB[i] + zPlaneB) <= 0.5){
             animation_ongoing = 0;
             gameEnded = 1;
         }
     }
+
+    for(int i=0; i<3; i++){
+
+        if(distance(xListCornA[i], 0, zListCornA[i] + zPlaneA) <= 1)  {
+            zListCornA[i] = 100;
+            glutPostRedisplay();
+            SCORE += 1;
+        }
+
+        if(distance(xListCornB[i], 0, zListCornB[i] + zPlaneB) <= 1)  {
+            zListCornB[i] = 100;
+            glutPostRedisplay();
+            SCORE += 1;
+        }
+
+
+    }
+}
+
+
+static bool is_in_planeA(float x, float z) {
+
+    for(int i=0; i<6; i++){
+
+        if(xListA[i] == x && zListA[i] == z)
+            return true;
+    }
+
+    return false;
+}
+
+
+static bool is_in_planeB(float x, float z) {
+
+    for(int i=0; i<6; i++){
+
+        if(xListB[i] == x && zListB[i] == z)
+            return true;
+    }
+
+    return false;
 }

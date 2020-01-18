@@ -4,7 +4,7 @@ CFLAGS  = -g -ansi -Wall -I/usr/X11R6/include -I/usr/pkg/include -std=c99
 LDFLAGS = -L/usr/X11R6/lib -L/usr/pkg/lib
 LDLIBS  = -lglut -lGLU -lGL -lm
 
-$(PROGRAM): main.o
+$(PROGRAM): main.o 
 	$(CC) $(LDFLAGS) -o $(PROGRAM) main.o $(LDLIBS)
 
 .PHONY: clean dist
