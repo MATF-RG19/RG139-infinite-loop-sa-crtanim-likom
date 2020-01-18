@@ -11,19 +11,22 @@
 
 #define STEP 100
 
+//macros for .obj file loading 
 #define FLYINGPIG_ID 1
 #define STONE_ID 2
-#define CORN_ID 3
+#define APPLE_ID 3
 
 #define TIMER_ID 0
 #define TIMER_INTERVAL 20
 
+//macros for texture files
 #define FILENAME0 "./texture/mud.bmp"
 #define FILENAME1 "./texture/grass.bmp"
-/* Identifikatori tekstura. */
+
+// texture ids
 static GLuint names[3];
 
-//struktura za cuvanje modela
+//struct for model storing
 typedef struct Vertex
 {
     double position[3];
@@ -31,32 +34,35 @@ typedef struct Vertex
     double normal[3];
 } Vertex;
 
-//struktura za cuvanje podataka iz .obj fajla
+//struct for .obj file data storing
 typedef struct VertRef
 {
     int v, vt, vn;
 } VertRef;
 
-//promenljive za pomeranje kamere misom
+//mouse variables
 static int mouse_x, mouse_y;
 static int window_width, window_height;
 static float matrix[16];
+
+//list of stone coordinates in plane A and plane B (crushes into)
 static float xListA[6];
 static float zListA[6];
 static float xListB[6];
 static float zListB[6];
 
-static float xListCornA[3];
-static float zListCornA[3];
-static float xListCornB[3];
-static float zListCornB[3];
+//list of apple coordinates in plane A and plane B (gets points)
+static float xListappleA[3];
+static float zListappleA[3];
+static float xListappleB[3];
+static float zListappleB[3];
 
-static float zPlaneA = -15;
-static float zPlaneB = -45;
-static int gameEnded = 0;
-static float speed = 0.2;
+static float zPlaneA = -15; //plane A moving variable
+static float zPlaneB = -45; //plane B moving variable
+static int gameEnded = 0; //ind if game game ended
+static float speed = 0.2; //pig speed
 
-static int SCORE = 0;
+static int SCORE = 0; //score (in apples)
 
 static void on_keyboard(unsigned char key, int x, int y);
 static void on_mouse(int button, int state, int x, int y);
@@ -66,40 +72,43 @@ static void on_display(void);
 static void on_timer(int value);
 
 static void draw_axis(float len);
-static void draw_pig(void);
-static void draw_stone(void);
-static void draw_corn(void);
-static void draw_planeA(void);
+static void draw_pig(void); //draws main character
+static void draw_stone(void); // draws obstacles that pig geets crashed into
+static void draw_apple(void); // draws apples that pig should eat
+static void draw_planeA(void); 
 static void draw_planeB(void);
-static void draw_obstaclesA(void);
-static void draw_obstaclesB(void);
-static void draw_cornA(void);
-static void draw_cornB(void);
+static void draw_obstaclesA(void); // draws obstacles on plane A
+static void draw_obstaclesB(void); // draws obstacles on plane B
+static void draw_appleA(void); //draws apples on plane A
+static void draw_appleB(void); // draws apples on plane B
 
-static void generate_random_poitionA(void);
-static void regenerate_random_poitionA(void);
-static void regenerate_random_poitionB(void);
+static void generate_random_poitionA(void); //initials starting positions for stones and apples
+static void regenerate_random_poitionA(void); // when plane gets behind pig, regenerate new positions for plane A
+static void regenerate_random_poitionB(void); // when plane gets behind pig, regenerate new positions for plane B
 
-static bool is_in_planeA(float x, float z);
-static bool is_in_planeB(float x, float z);
+static bool is_in_planeA(float x, float z); //checks if the position is occupied in plane A
+static bool is_in_planeB(float x, float z); //checks if the position is occupied in plane B
 
 
-static float distance(float x, float y, float z);
-static void collision(void);
+static float distance(float x, float y, float z); //checks the distance between pig and object with x, y, z coordinates
+static void collision(void); // checks for collision with pig
 
-Vertex* LoadObj(FILE * file, int id);
-
+Vertex* LoadObj(FILE * file, int id); //function for loading models
+ 
+//pig variables
 static Vertex *model;
 static int model_size = 0;
 
+//rock variables
 static Vertex *model_rock;
 static int model_rock_size = 0;
 
-static Vertex *model_corn;
-static int model_corn_size = 0;
+//apple variables
+static Vertex *model_apple;
+static int model_apple_size = 0;
 
 static int animation_ongoing = 0;
-static int xPig = 0, yPig = 0, zPig = 0;
+static int xPig = 0, yPig = 0, zPig = 0; //pig coordinates
 
 
 int main(int argc, char **argv)
@@ -154,7 +163,7 @@ int main(int argc, char **argv)
         printf("Impossible to open the file !\n");
         return false;
     }
-    model_corn = LoadObj(fileC, CORN_ID);
+    model_apple = LoadObj(fileC, apple_ID);
     fclose(fileC);
 
     glEnable(GL_TEXTURE_2D);
@@ -224,28 +233,28 @@ void draw_axis(float len) {
     glEnable(GL_LIGHTING);
 }
 
-static void draw_cornA(void) {
+static void draw_appleA(void) {
     
     int num = 3;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
-        glTranslatef(xListCornA[i], 0, zListCornA[i]);
-        draw_corn();
+        glTranslatef(xListappleA[i], 0, zListappleA[i]);
+        draw_apple();
         // glutSolidSphere(1,10,10);
         glPopMatrix();
     }
     
 }
 
-static void draw_cornB(void) {
+static void draw_appleB(void) {
     
     int num = 3;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
-        glTranslatef(xListCornB[i], 0, zListCornB[i]);
-        draw_corn();
+        glTranslatef(xListappleB[i], 0, zListappleB[i]);
+        draw_apple();
         // glutSolidSphere(1,10,10);
         glPopMatrix();
     }
@@ -286,7 +295,7 @@ static void draw_planeB(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneB);
-    draw_cornB();
+    draw_appleB();
     draw_obstaclesB();
     glTranslatef(0,-0.5,0);
     glPushMatrix();
@@ -353,7 +362,7 @@ static void draw_planeA(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneA);
-    draw_cornA();
+    draw_appleA();
     draw_obstaclesA();
     glTranslatef(0,-0.5,0);
     glPushMatrix();
@@ -482,7 +491,7 @@ static void draw_stone(void)
     glEnable(GL_LIGHTING);
 }
 
-static void draw_corn(void)
+static void draw_apple(void)
 {
     glDisable(GL_LIGHTING);
     GLfloat ambient_coeffs[] = { 0.4, 0, 0.7, 1 };
@@ -501,9 +510,9 @@ static void draw_corn(void)
     glBindTexture(GL_TEXTURE_2D, 0);
     glBegin(GL_TRIANGLES);
         glColor3f(.7,.1,.1);
-        for(int i=0; i<model_corn_size; i++){
-                glNormal3f(model_corn[i].normal[0], model_corn[i].normal[1], model_corn[i].normal[2]);
-                glVertex3f(model_corn[i].position[0], model_corn[i].position[1], model_corn[i].position[2]);
+        for(int i=0; i<model_apple_size; i++){
+                glNormal3f(model_apple[i].normal[0], model_apple[i].normal[1], model_apple[i].normal[2]);
+                glVertex3f(model_apple[i].position[0], model_apple[i].position[1], model_apple[i].position[2]);
         } 
     glEnd();
     glEnable(GL_LIGHTING);
@@ -832,9 +841,9 @@ Vertex* LoadObj(FILE * file, int id){
         model_rock_size = verts_count;
     }
     
-    if (id == CORN_ID)
+    if (id == APPLE_ID)
     {
-        model_corn_size = verts_count;
+        model_apple_size = verts_count;
     }
     
 
@@ -911,20 +920,20 @@ static void generate_random_poitionA(void) {
     {
         int v2 = rand() % 10;
         // int v2 = rand() % 10;
-        zListCornA[i] = rand() % 15;
-        xListCornA[i] = rand() % 6;
-        zListCornB[i] = rand() % 15;
-        xListCornB[i] = rand() % 6;
+        zListappleA[i] = rand() % 15;
+        xListappleA[i] = rand() % 6;
+        zListappleB[i] = rand() % 15;
+        xListappleB[i] = rand() % 6;
         if(v2 > 4){
-            zListCornA[i] *= -1;
-            zListCornB[i] *= -1;
+            zListappleA[i] *= -1;
+            zListappleB[i] *= -1;
         }
         if(i%2 == 0){
-            xListCornA[i] *= -1;
-            xListCornB[i] *= -1;
+            xListappleA[i] *= -1;
+            xListappleB[i] *= -1;
         }
 
-        if(is_in_planeA(xListCornA[i], zListCornA[i]) || is_in_planeB(xListCornB[i], zListCornB[i]))
+        if(is_in_planeA(xListappleA[i], zListappleA[i]) || is_in_planeB(xListappleB[i], zListappleB[i]))
             i -= 1;
 
     }
@@ -952,16 +961,16 @@ static void regenerate_random_poitionA(void) {
     {
         int v2 = rand() % 10;
         // int v2 = rand() % 10;
-        zListCornA[i] = rand() % 15;
-        xListCornA[i] = rand() % 6;
+        zListappleA[i] = rand() % 15;
+        xListappleA[i] = rand() % 6;
         if(v2 > 4){
-            zListCornA[i] *= -1;
+            zListappleA[i] *= -1;
         }
         if(i%2 == 0){
-            xListCornA[i] *= -1;
+            xListappleA[i] *= -1;
         }
 
-        if(is_in_planeA(xListCornA[i], zListCornA[i]))
+        if(is_in_planeA(xListappleA[i], zListappleA[i]))
             i -= 1;
 
     }
@@ -988,16 +997,16 @@ static void regenerate_random_poitionB(void) {
     {
         int v2 = rand() % 10;
         // int v2 = rand() % 10;
-        zListCornB[i] = rand() % 15;
-        xListCornB[i] = rand() % 6;
+        zListappleB[i] = rand() % 15;
+        xListappleB[i] = rand() % 6;
         if(v2 > 4){
-            zListCornB[i] *= -1;
+            zListappleB[i] *= -1;
         }
         if(i%2 == 0){
-            xListCornB[i] *= -1;
+            xListappleB[i] *= -1;
         }
 
-        if(is_in_planeB(xListCornB[i], zListCornB[i]))
+        if(is_in_planeB(xListappleB[i], zListappleB[i]))
             i-=1;
 
     }
@@ -1024,14 +1033,14 @@ static void collision(void) {
 
     for(int i=0; i<3; i++){
 
-        if(distance(xListCornA[i], 0, zListCornA[i] + zPlaneA) <= 1)  {
-            zListCornA[i] = 100;
+        if(distance(xListappleA[i], 0, zListappleA[i] + zPlaneA) <= 1)  {
+            zListappleA[i] = 100;
             glutPostRedisplay();
             SCORE += 1;
         }
 
-        if(distance(xListCornB[i], 0, zListCornB[i] + zPlaneB) <= 1)  {
-            zListCornB[i] = 100;
+        if(distance(xListappleB[i], 0, zListappleB[i] + zPlaneB) <= 1)  {
+            zListappleB[i] = 100;
             glutPostRedisplay();
             SCORE += 1;
         }
