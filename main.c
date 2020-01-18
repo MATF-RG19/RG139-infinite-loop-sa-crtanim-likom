@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #define STEP 100
 #define FLYINGPIG_ID 1
@@ -30,6 +31,13 @@ typedef struct VertRef
 static int mouse_x, mouse_y;
 static int window_width, window_height;
 static float matrix[16];
+static int xListA[7];
+static int zListA[7];
+static int xListB[7];
+static int zListB[7];
+static float zPlaneA = -15;
+static float zPlaneB = -45;
+static int gameEnded = 0;
 
 static void on_keyboard(unsigned char key, int x, int y);
 static void on_mouse(int button, int state, int x, int y);
@@ -40,6 +48,18 @@ static void on_timer(int value);
 
 static void draw_axis(float len);
 static void draw_pig(void);
+static void draw_planeA(void);
+static void draw_planeB(void);
+static void draw_obstaclesA(void);
+static void draw_obstaclesB(void);
+
+static void generate_random_poitionA(void);
+static void regenerate_random_poitionA(void);
+static void regenerate_random_poitionB(void);
+
+
+static float distance(float x, float y, float z);
+static void collision(void);
 
 Vertex* LoadObj(FILE * file, int id);
 
@@ -58,7 +78,10 @@ int main(int argc, char **argv)
     glutInitWindowSize(600, 600);
     glutInitWindowPosition(100, 100);
     glutCreateWindow(argv[0]);
-
+    
+    // srand(time(NULL));
+    generate_random_poitionA();
+    
 
     glutKeyboardFunc(on_keyboard);
     glutReshapeFunc(on_reshape);
@@ -107,6 +130,61 @@ void draw_axis(float len) {
 
     glEnable(GL_LIGHTING);
 }
+
+static void draw_obstaclesA(void) {
+    
+    int num = 7;
+    for(int i=0; i<num; i++){
+    
+        glPushMatrix();
+        glColor3f(1,0,0);
+        glTranslatef(xListA[i], 0, zListA[i]);
+        glScalef(1,2,1);
+        glutSolidCube(1);
+        glPopMatrix();
+    }
+    
+}
+
+static void draw_obstaclesB(void) {
+    
+    int num = 7;
+    for(int i=0; i<num; i++){
+    
+        glPushMatrix();
+        glColor3f(1,0,0);
+        glTranslatef(xListB[i], 0, zListB[i]);
+        glScalef(1,2,1);
+        glutSolidCube(1);
+        glPopMatrix();
+    }
+    
+}
+
+static void draw_planeB(void) {
+    glDisable(GL_LIGHTING);
+    
+    glTranslatef(0,0, zPlaneB);
+    draw_obstaclesB();
+    glTranslatef(0,-0.5,0);
+    glScalef(11, 1, 30);
+    glColor3f(0.5,0.35,0.05);
+    glutSolidCube(1);
+    glEnable(GL_LIGHTING);
+}
+
+static void draw_planeA(void) {
+    glDisable(GL_LIGHTING);
+    
+    glTranslatef(0,0, zPlaneA);
+    draw_obstaclesA();
+    glTranslatef(0,-0.5,0);
+    glScalef(11, 1, 30);
+    glColor3f(0.5,0.35,0.05);
+    glutSolidCube(1);
+    glEnable(GL_LIGHTING);
+}
+
 static void draw_pig(void)
 {
     glDisable(GL_LIGHTING);
@@ -149,7 +227,7 @@ static void on_keyboard(unsigned char key, int x, int y)
     
     case 'g':
     case 'G':
-        if (!animation_ongoing) {
+        if (!animation_ongoing && !gameEnded) {
             glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
             animation_ongoing = 1;
         }
@@ -161,14 +239,25 @@ static void on_keyboard(unsigned char key, int x, int y)
         break;
     case 'a':
     case 'A':
-        if (xPig > -10)
+        if (xPig > -5)
             xPig -=1;
         glutPostRedisplay();
         break;
     case 'd':
     case 'D':
-        if(xPig < 10)
+        if(xPig < 5)
             xPig +=1;
+        glutPostRedisplay();
+        break;
+    case 'r':
+    case 'R':
+        zPlaneA = -15;
+        zPlaneB = -45;
+        animation_ongoing = 0;
+        gameEnded = 0;
+        xPig = 0;
+        regenerate_random_poitionA();
+        regenerate_random_poitionB();
         glutPostRedisplay();
         break;
     case 27:
@@ -183,7 +272,22 @@ static void on_timer(int value)
     if (value != TIMER_ID)
         return;
 
-    zPig -= 1;
+    zPlaneA = zPlaneA + 0.5f;
+    zPlaneB = zPlaneB + 0.5f;
+    collision();
+    if (zPlaneA - 15 > 5)
+    {
+        regenerate_random_poitionA();
+        zPlaneA = -39;
+    }
+
+    if (zPlaneB - 15 > 5)
+{       
+        
+        regenerate_random_poitionB();
+        zPlaneB = -39;
+    }
+    
     glutPostRedisplay();
     if (animation_ongoing) {
         glutTimerFunc(TIMER_INTERVAL, on_timer, TIMER_ID);
@@ -210,11 +314,19 @@ static void on_display(void)
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(xPig, yPig + 3, zPig + 4, xPig, yPig, zPig, 0, 1, 0);
+    gluLookAt(xPig, yPig*1.0 + 2.1, zPig + 4, xPig, yPig, zPig, 0, 1, 0);
     glMultMatrixf(matrix);
     
     draw_axis(100);
-    
+
+    glPushMatrix();
+        draw_planeB();
+    glPopMatrix();
+
+    glPushMatrix();
+        draw_planeA();
+    glPopMatrix();
+
     glPushMatrix();
         glTranslatef(xPig, yPig, zPig);
         draw_pig();
@@ -396,7 +508,7 @@ Vertex* LoadObj(FILE * file, int id){
                     verts[verts_count].normal[1] = vert.normal[1];
                     verts[verts_count].normal[2] = vert.normal[2];
 
-                    verts[verts_count].texcoord[0] = vert.texcoord[0];
+                    verts[verts_count].texcoord[0] = vert.texcoord[50];
                     verts[verts_count].texcoord[1] = vert.texcoord[1];
                     verts_count += 1;
                 }
@@ -455,4 +567,81 @@ static void on_motion(int x, int y)
 
     
     glutPostRedisplay();
+}
+
+static void generate_random_poitionA(void) {
+    int num = 7;
+    for(int i=0; i<num; i++){
+        int v1 = rand() % 10;
+        // int v2 = rand() % 10;
+        zListA[i] = rand() % 15;
+        xListA[i] = rand() % 6;
+        zListB[i] = rand() % 15;
+        xListB[i] = rand() % 6;
+        if(v1 > 4){
+            zListB[i] *= -1;
+            zListA[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListB[i] *= -1;
+            xListA[i] *= -1;
+        }
+        
+
+    }
+}
+
+static void regenerate_random_poitionA(void) {
+    int num = 7;
+    for(int i=0; i<num; i++){
+        
+        int v1 = rand() % 10;
+        zListA[i] = rand() % 15;
+        xListA[i] = rand() % 6;
+        if(v1 > 4){
+            zListA[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListA[i] *= -1;
+        }
+        
+
+    }
+}
+
+static void regenerate_random_poitionB(void) {
+    int num = 7;
+    
+    for(int i=0; i<num; i++){
+        int v1 = rand() % 10;
+        zListB[i] = rand() % 15;
+        xListB[i] = rand() % 6;
+        if(v1 > 4){
+            zListB[i] *= -1;
+        }
+        if(i%2 == 0){
+            xListB[i] *= -1;
+        }
+        
+
+    }
+}
+
+static float distance(float x, float y, float z)
+{
+    float xTmp = powf((x - xPig),2);
+    float yTmp = powf((y - yPig),2);
+    float zTmp = powf((z - zPig),2);
+
+    return sqrtf(xTmp + yTmp + zTmp);
+}
+
+static void collision(void) {
+    for(int i=0; i<7; i++){
+
+        if(distance(xListA[i], 0, zListA[i] + zPlaneA) <= 0 || distance(xListB[i], 0, zListB[i] + zPlaneB) <= 0){
+            animation_ongoing = 0;
+            gameEnded = 1;
+        }
+    }
 }
