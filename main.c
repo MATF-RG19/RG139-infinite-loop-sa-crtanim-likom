@@ -163,7 +163,7 @@ int main(int argc, char **argv)
         printf("Impossible to open the file !\n");
         return false;
     }
-    model_apple = LoadObj(fileC, apple_ID);
+    model_apple = LoadObj(fileC, APPLE_ID);
     fclose(fileC);
 
     glEnable(GL_TEXTURE_2D);
