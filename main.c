@@ -7,17 +7,21 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include "image.h"
 
 #define STEP 100
 
 #define FLYINGPIG_ID 1
 #define STONE_ID 2
-#define APPLE_ID 3
+#define CORN_ID 3
 
 #define TIMER_ID 0
 #define TIMER_INTERVAL 20
 
-
+#define FILENAME0 "./texture/mud.bmp"
+#define FILENAME1 "./texture/grass.bmp"
+/* Identifikatori tekstura. */
+static GLuint names[3];
 
 //struktura za cuvanje modela
 typedef struct Vertex
@@ -64,13 +68,13 @@ static void on_timer(int value);
 static void draw_axis(float len);
 static void draw_pig(void);
 static void draw_stone(void);
-static void draw_apple(void);
+static void draw_corn(void);
 static void draw_planeA(void);
 static void draw_planeB(void);
 static void draw_obstaclesA(void);
 static void draw_obstaclesB(void);
-static void draw_appleA(void);
-static void draw_appleB(void);
+static void draw_cornA(void);
+static void draw_cornB(void);
 
 static void generate_random_poitionA(void);
 static void regenerate_random_poitionA(void);
@@ -91,8 +95,8 @@ static int model_size = 0;
 static Vertex *model_rock;
 static int model_rock_size = 0;
 
-static Vertex *model_apple;
-static int model_apple_size = 0;
+static Vertex *model_corn;
+static int model_corn_size = 0;
 
 static int animation_ongoing = 0;
 static int xPig = 0, yPig = 0, zPig = 0;
@@ -150,10 +154,50 @@ int main(int argc, char **argv)
         printf("Impossible to open the file !\n");
         return false;
     }
-    model_apple = LoadObj(fileC, APPLE_ID);
+    model_corn = LoadObj(fileC, CORN_ID);
     fclose(fileC);
 
+    glEnable(GL_TEXTURE_2D);
+
+    glTexEnvf(GL_TEXTURE_ENV,
+              GL_TEXTURE_ENV_MODE,
+              GL_REPLACE);
+
+    Image *image;
+    image = image_init(0, 0);
+    image_read(image, FILENAME0);
+
+    glGenTextures(3, names);
+
+    glBindTexture(GL_TEXTURE_2D, names[0]);
+    glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                 image->width, image->height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+
+    image_read(image, FILENAME1);
+
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                 image->width, image->height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+
     
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    image_done(image);
 
     glutMainLoop();
 
@@ -180,28 +224,28 @@ void draw_axis(float len) {
     glEnable(GL_LIGHTING);
 }
 
-static void draw_appleA(void) {
+static void draw_cornA(void) {
     
     int num = 3;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
         glTranslatef(xListCornA[i], 0, zListCornA[i]);
-        draw_apple();
+        draw_corn();
         // glutSolidSphere(1,10,10);
         glPopMatrix();
     }
     
 }
 
-static void draw_appleB(void) {
+static void draw_cornB(void) {
     
     int num = 3;
     for(int i=0; i<num; i++){
     
         glPushMatrix();
         glTranslatef(xListCornB[i], 0, zListCornB[i]);
-        draw_apple();
+        draw_corn();
         // glutSolidSphere(1,10,10);
         glPopMatrix();
     }
@@ -242,12 +286,65 @@ static void draw_planeB(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneB);
-    draw_appleB();
+    draw_cornB();
     draw_obstaclesB();
     glTranslatef(0,-0.5,0);
-    glScalef(11, 1, 30);
-    glColor3f(0.5,0.35,0.05);
-    glutSolidCube(1);
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[0]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(-6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(-6.5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(6.5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
 
     glEnable(GL_LIGHTING);
 }
@@ -256,12 +353,68 @@ static void draw_planeA(void) {
     glDisable(GL_LIGHTING);
     
     glTranslatef(0,0, zPlaneA);
-    draw_appleA();
+    draw_cornA();
     draw_obstaclesA();
     glTranslatef(0,-0.5,0);
-    glScalef(11, 1, 30);
-    glColor3f(0.5,0.35,0.05);
-    glutSolidCube(1);
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[0]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+    //
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(-6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(-6.5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(6.5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+
+    //
 
 
     glEnable(GL_LIGHTING);
@@ -329,7 +482,7 @@ static void draw_stone(void)
     glEnable(GL_LIGHTING);
 }
 
-static void draw_apple(void)
+static void draw_corn(void)
 {
     glDisable(GL_LIGHTING);
     GLfloat ambient_coeffs[] = { 0.4, 0, 0.7, 1 };
@@ -348,9 +501,9 @@ static void draw_apple(void)
     glBindTexture(GL_TEXTURE_2D, 0);
     glBegin(GL_TRIANGLES);
         glColor3f(.7,.1,.1);
-        for(int i=0; i<model_apple_size; i++){
-                glNormal3f(model_apple[i].normal[0], model_apple[i].normal[1], model_apple[i].normal[2]);
-                glVertex3f(model_apple[i].position[0], model_apple[i].position[1], model_apple[i].position[2]);
+        for(int i=0; i<model_corn_size; i++){
+                glNormal3f(model_corn[i].normal[0], model_corn[i].normal[1], model_corn[i].normal[2]);
+                glVertex3f(model_corn[i].position[0], model_corn[i].position[1], model_corn[i].position[2]);
         } 
     glEnd();
     glEnable(GL_LIGHTING);
@@ -679,9 +832,9 @@ Vertex* LoadObj(FILE * file, int id){
         model_rock_size = verts_count;
     }
     
-    if (id == APPLE_ID)
+    if (id == CORN_ID)
     {
-        model_apple_size = verts_count;
+        model_corn_size = verts_count;
     }
     
 
