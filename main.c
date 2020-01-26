@@ -71,7 +71,6 @@ static void on_reshape(int width, int height);
 static void on_display(void);
 static void on_timer(int value);
 
-static void draw_axis(float len);
 static void draw_pig(void); //draws main character
 static void draw_stone(void); // draws obstacles that pig geets crashed into
 static void draw_apple(void); // draws apples that pig should eat
@@ -150,7 +149,7 @@ int main(int argc, char **argv)
     model = LoadObj(fileP, FLYINGPIG_ID);
     fclose(fileP);
 
-    FILE * fileR = fopen("./models/andrija.obj", "r");
+    FILE * fileR = fopen("./models/stone.obj", "r");
     if( fileR == NULL ){
         printf("Impossible to open the file !\n");
         return false;
@@ -213,25 +212,6 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void draw_axis(float len) {
-    glDisable(GL_LIGHTING);
-    
-    glBegin(GL_LINES);
-        glColor3f(1,0,0);
-        glVertex3f(-len,0,0);
-        glVertex3f(len,0,0);
-
-        glColor3f(0,1,0);
-        glVertex3f(0,-len,0);
-        glVertex3f(0,len,0);
-
-        glColor3f(0,0,1);
-        glVertex3f(0,0,-len);
-        glVertex3f(0,0,len);
-    glEnd();
-
-    glEnable(GL_LIGHTING);
-}
 
 static void draw_appleA(void) {
     
@@ -298,63 +278,7 @@ static void draw_planeB(void) {
     draw_appleB();
     draw_obstaclesB();
     glTranslatef(0,-0.5,0);
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[0]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(-5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(-5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[1]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(-5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(-5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(-6.5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(-6.5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[1]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(6.5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(6.5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-
+  
     glEnable(GL_LIGHTING);
 }
 
@@ -365,67 +289,7 @@ static void draw_planeA(void) {
     draw_appleA();
     draw_obstaclesA();
     glTranslatef(0,-0.5,0);
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[0]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(-5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(-5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-    //
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[1]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(-5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(-5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(-6.5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(-6.5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, names[1]);
-    glBegin(GL_QUADS);
-        glNormal3f(0, 1, 0);
-
-        glTexCoord2f(0, 0);
-        glVertex3f(5, 0.5, 20);
-
-        glTexCoord2f(12, 0);
-        glVertex3f(5, 0.5, -20);
-
-        glTexCoord2f(12, 6);
-        glVertex3f(6.5, 0.5, -20);
-
-        glTexCoord2f(0, 6);
-        glVertex3f(6.5, 0.5, 20);
-    glEnd();
-    glPopMatrix();
-
-
-    //
-
-
+  
     glEnable(GL_LIGHTING);
 }
 
@@ -612,16 +476,21 @@ static void on_display(void)
     // draw_axis(100);
     
     glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glColor3f(1, 1, 1);
     glRasterPos3f(-2 + xPig, 2, 0);
     char score_display[50] = "SCORE : ";
     char string_score[50];
     sprintf(string_score, "%d", SCORE);
     strcat(score_display, string_score);
     int len = (int) strlen(score_display);
-
+    
     for(int i=0; i<len;i++) {
+
+        
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, score_display[i]);
     }
+    
     glPopMatrix();
 
 
@@ -636,6 +505,72 @@ static void on_display(void)
     glPushMatrix();
         glTranslatef(xPig, yPig, zPig);
         draw_pig();
+    glPopMatrix();
+
+    glPushMatrix();
+
+    glTranslatef(0, -0.5, -15);
+
+    glBindTexture(GL_TEXTURE_2D, names[0]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+
+    glTranslatef(0, -0.5, -15);
+
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(-5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(-5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(-6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(-6.5, 0.5, 20);
+    glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    
+    glTranslatef(0, -0.5, -15);
+
+    glBindTexture(GL_TEXTURE_2D, names[1]);
+    glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+
+        glTexCoord2f(0, 0);
+        glVertex3f(5, 0.5, 20);
+
+        glTexCoord2f(12, 0);
+        glVertex3f(5, 0.5, -20);
+
+        glTexCoord2f(12, 6);
+        glVertex3f(6.5, 0.5, -20);
+
+        glTexCoord2f(0, 6);
+        glVertex3f(6.5, 0.5, 20);
+    glEnd();
     glPopMatrix();
 
     glutSwapBuffers();
